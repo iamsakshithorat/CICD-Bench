@@ -1,0 +1,19 @@
+name: A - No caching (baseline)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image with no cache and measure time
+        run: |
+          start=$(date +%s)
+          docker build --no-cache -t cicd-bench:latest .
+          end=$(date +%s)
+          secs=$((end-start))
+          echo "CONFIG=A BUILD_SECONDS=$secs"
+          echo "| A (no cache) | $secs s |" >> "$GITHUB_STEP_SUMMARY"
