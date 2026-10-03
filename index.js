@@ -1,0 +1,6 @@
+const express = require('express');
+const _ = require('lodash');
+
+const app = express();
+app.get('/', (req, res) => res.json({ ok: true, items: _.range(5) }));
+app.listen(3000, () => console.log('Listening on 3000'));
