@@ -1,0 +1,56 @@
+name: Benchmark (choose config A / B / C / D)
+
+on:
+  workflow_dispatch:
+    inputs:
+      config:
+        description: "A = no cache, B = dependency cache, C = Docker layer cache, D = both"
+        required: true
+        type: choice
+        options: [A, B, C, D]
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        run: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30]
+    steps:
+      - name: Start timer
+        run: echo "START=$(date +%s)" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Restore dependency cache (B and D only)
+        if: ${{ inputs.config == 'B' || inputs.config == 'D' }}
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ inputs.config }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies on runner
+        run: npm ci --no-audit --no-fund
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          no-cache: ${{ inputs.config == 'A' || inputs.config == 'B' }}
+          cache-from: ${{ (inputs.config == 'C' || inputs.config == 'D') && format('type=gha,scope={0}', inputs.config) || '' }}
+          cache-to: ${{ (inputs.config == 'C' || inputs.config == 'D') && format('type=gha,mode=max,scope={0}', inputs.config) || '' }}
+
+      - name: Stop timer and record
+        run: |
+          end=$(date +%s)
+          secs=$((end-START))
+          echo "RESULT,${{ inputs.config }},${{ matrix.run }},$secs"
+          echo "| ${{ inputs.config }} | run ${{ matrix.run }} | $secs s |" >> "$GITHUB_STEP_SUMMARY"
